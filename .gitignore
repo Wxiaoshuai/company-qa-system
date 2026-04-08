@@ -1,0 +1,9 @@
+﻿# Local env
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Data artifacts
+data/vector_store/*
+!data/vector_store/.gitkeep
