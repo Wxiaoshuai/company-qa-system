@@ -1,6 +1,7 @@
 import json
 import math
 from dataclasses import dataclass
+from typing import Iterator
 
 from openai import OpenAI
 
@@ -70,16 +71,21 @@ class QAService:
         top_k = max(1, settings.rag_top_k)
         return [item[1] for item in scored[:top_k]]
 
-    def answer(self, question: str) -> QAResult:
-        contexts = self._retrieve(question)
-        client = self._get_client()
-
-        context_text = "\n\n".join(
+    @staticmethod
+    def _build_context_text(contexts: list[dict]) -> str:
+        return "\n\n".join(
             [
                 f"[Source: {c['source']}#{c['chunk_index']}]\n{c['text']}"
                 for c in contexts
             ]
         )
+
+    @staticmethod
+    def _build_references(contexts: list[dict]) -> list[str]:
+        return [f"{c['source']}#{c['chunk_index']}" for c in contexts]
+
+    def _build_prompts(self, question: str, contexts: list[dict]) -> tuple[str, str]:
+        context_text = self._build_context_text(contexts)
 
         system_prompt = (
             "You are a company QA assistant. "
@@ -95,6 +101,12 @@ class QAService:
             "2) Do not fabricate facts not present in context.\n"
             "3) If uncertain, explicitly state uncertainty."
         )
+        return system_prompt, user_prompt
+
+    def answer(self, question: str) -> QAResult:
+        contexts = self._retrieve(question)
+        client = self._get_client()
+        system_prompt, user_prompt = self._build_prompts(question, contexts)
 
         completion = client.chat.completions.create(
             model=settings.chat_model,
@@ -106,8 +118,38 @@ class QAService:
         )
 
         answer_text = completion.choices[0].message.content or "No answer generated."
-        refs = [f"{c['source']}#{c['chunk_index']}" for c in contexts]
-        return QAResult(answer=answer_text, references=refs)
+        return QAResult(answer=answer_text, references=self._build_references(contexts))
+
+    def stream_answer(self, question: str) -> tuple[Iterator[str], list[str]]:
+        contexts = self._retrieve(question)
+        client = self._get_client()
+        system_prompt, user_prompt = self._build_prompts(question, contexts)
+        refs = self._build_references(contexts)
+
+        stream = client.chat.completions.create(
+            model=settings.chat_model,
+            temperature=0,
+            stream=True,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+
+        def iterator() -> Iterator[str]:
+            emitted = False
+            for chunk in stream:
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    emitted = True
+                    yield delta
+
+            if not emitted:
+                yield "No answer generated."
+
+        return iterator(), refs
 
 
 qa_service = QAService()

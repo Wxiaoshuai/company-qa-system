@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Company QA System</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="chat-panel">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Company QA System</p>
+            <h1>企业知识问答</h1>
+            <p class="subtitle">桌面端和 H5 都可直接使用的轻量对话页</p>
+            <div class="quick-questions" aria-label="欢迎问题">
+              <button class="quick-question" type="button" data-question="公司的年假政策是什么？">年假政策</button>
+              <button class="quick-question" type="button" data-question="病假政策是怎样的？">病假政策</button>
+              <button class="quick-question" type="button" data-question="每周可以远程办公几天？">远程办公</button>
+            </div>
+          </div>
+          <button id="clear-history" class="ghost-button" type="button">清空记录</button>
+        </header>
+
+        <section id="messages" class="messages" aria-live="polite"></section>
+
+        <form id="chat-form" class="composer">
+          <label class="composer-label" for="question-input">输入你的问题</label>
+          <div class="composer-row">
+            <textarea
+              id="question-input"
+              name="question"
+              rows="1"
+              maxlength="2000"
+              placeholder="例如：公司的年假政策是什么？"
+            ></textarea>
+            <button id="send-button" class="send-button" type="submit">发送</button>
+          </div>
+          <p id="status-text" class="status-text">基于知识库内容回答，不会保存到服务端。</p>
+        </form>
+      </section>
+    </main>
+
+    <template id="welcome-template">
+      <section class="welcome-card">
+        <article class="message assistant">
+          <div class="bubble">
+            <p class="message-role">助手</p>
+            <p>
+              你好，我可以基于当前知识库回答问题。你可以直接提问，也可以点下面的欢迎问题快速开始。
+            </p>
+          </div>
+        </article>
+        <div class="quick-grid">
+          <button class="welcome-question" type="button" data-question="公司的年假政策是什么？">
+            公司的年假政策是什么？
+          </button>
+          <button class="welcome-question" type="button" data-question="病假需要什么条件？">
+            病假需要什么条件？
+          </button>
+          <button class="welcome-question" type="button" data-question="远程办公的规定是什么？">
+            远程办公的规定是什么？
+          </button>
+        </div>
+      </section>
+    </template>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

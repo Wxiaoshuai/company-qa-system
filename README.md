@@ -59,6 +59,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## API
 
+- Chat UI: `GET /`
 - Health: `GET /health`
 - Ask: `POST /api/v1/qa/ask`
 
@@ -81,6 +82,24 @@ Response body:
   ]
 }
 ```
+
+Test:
+```powershell
+python -c "import requests; response = requests.post('http://127.0.0.1:8000/api/v1/qa/ask', json={'question': 'What is the annual leave policy?'}); print(response.json())"
+```
+
+Open the chat page:
+```text
+http://127.0.0.1:8000/
+```
+
+The chat page:
+
+- works on desktop browsers and mobile H5 browsers
+- includes welcome question shortcuts for quick start
+- stores chat history in the current browser via `localStorage`
+- streams answers progressively from the server
+- shows response references in a collapsible section
 
 ## Notes
 
