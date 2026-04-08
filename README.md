@@ -105,3 +105,7 @@ The chat page:
 
 - Current retriever uses cosine similarity over local JSON vectors.
 - For production, replace index storage with a vector database and add auth, logging, and evaluation.
+
+## Deployment
+
+- Alibaba Cloud ECS deployment guide: `DEPLOY_ALIYUN.md`
