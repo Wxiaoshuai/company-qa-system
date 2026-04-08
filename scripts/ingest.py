@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from openai import OpenAI
+import requests
 
 # Allow running via `python scripts/ingest.py` from project root.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -66,20 +66,35 @@ def load_docs(doc_dir: Path) -> list[Chunk]:
     return all_chunks
 
 
-def get_client() -> OpenAI:
+def get_api_base() -> str:
+    if settings.openai_base_url:
+        return settings.openai_base_url.rstrip("/")
+    return "https://api.openai.com/v1"
+
+
+def get_headers() -> dict[str, str]:
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
-    if settings.openai_base_url:
-        return OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
-    return OpenAI(api_key=settings.openai_api_key)
+    return {
+        "Authorization": f"Bearer {settings.openai_api_key}",
+        "Content-Type": "application/json",
+    }
 
 
-def embed_texts(client: OpenAI, texts: list[str], batch_size: int = 64) -> list[list[float]]:
+def embed_texts(texts: list[str], batch_size: int = 64) -> list[list[float]]:
     vectors: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        res = client.embeddings.create(model=settings.embedding_model, input=batch)
-        vectors.extend([item.embedding for item in res.data])
+        response = requests.post(
+            f"{get_api_base()}/embeddings",
+            headers=get_headers(),
+            json={"model": settings.embedding_model, "input": batch},
+            timeout=120,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(response.text)
+        res = response.json()
+        vectors.extend([item["embedding"] for item in res["data"]])
     return vectors
 
 
@@ -94,8 +109,7 @@ def main() -> None:
             "No documents found. Put .txt/.md files into data/docs and run again."
         )
 
-    client = get_client()
-    vectors = embed_texts(client, [c.text for c in chunks])
+    vectors = embed_texts([c.text for c in chunks])
 
     payload = {
         "created_at": datetime.now(timezone.utc).isoformat(),

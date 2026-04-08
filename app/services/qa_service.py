@@ -3,7 +3,7 @@ import math
 from dataclasses import dataclass
 from typing import Iterator
 
-from openai import OpenAI
+import requests
 
 from app.core.config import settings
 
@@ -19,13 +19,46 @@ class QAService:
         self._cached_mtime: float | None = None
         self._chunks: list[dict] = []
 
-    def _get_client(self) -> OpenAI:
+    def _get_api_base(self) -> str:
+        if settings.openai_base_url:
+            return settings.openai_base_url.rstrip("/")
+        return "https://api.openai.com/v1"
+
+    def _get_headers(self) -> dict[str, str]:
         if not settings.openai_api_key:
             raise RuntimeError("OPENAI_API_KEY is not set")
 
-        if settings.openai_base_url:
-            return OpenAI(api_key=settings.openai_api_key, base_url=settings.openai_base_url)
-        return OpenAI(api_key=settings.openai_api_key)
+        return {
+            "Authorization": f"Bearer {settings.openai_api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def _post_json(self, endpoint: str, payload: dict) -> dict:
+        response = requests.post(
+            f"{self._get_api_base()}{endpoint}",
+            headers=self._get_headers(),
+            json=payload,
+            timeout=120,
+        )
+        if response.status_code >= 400:
+            raise RuntimeError(response.text)
+        return response.json()
+
+    def _stream_post_lines(self, endpoint: str, payload: dict) -> Iterator[str]:
+        with requests.post(
+            f"{self._get_api_base()}{endpoint}",
+            headers=self._get_headers(),
+            json=payload,
+            timeout=120,
+            stream=True,
+        ) as response:
+            if response.status_code >= 400:
+                raise RuntimeError(response.text)
+
+            for raw_line in response.iter_lines(decode_unicode=True):
+                if not raw_line:
+                    continue
+                yield raw_line
 
     def _load_index_if_needed(self) -> None:
         path = settings.vector_index_path
@@ -57,10 +90,11 @@ class QAService:
 
     def _retrieve(self, question: str) -> list[dict]:
         self._load_index_if_needed()
-        client = self._get_client()
-
-        emb = client.embeddings.create(model=settings.embedding_model, input=question)
-        q_vec = emb.data[0].embedding
+        emb = self._post_json(
+            "/embeddings",
+            {"model": settings.embedding_model, "input": question},
+        )
+        q_vec = emb["data"][0]["embedding"]
 
         scored: list[tuple[float, dict]] = []
         for chunk in self._chunks:
@@ -105,43 +139,53 @@ class QAService:
 
     def answer(self, question: str) -> QAResult:
         contexts = self._retrieve(question)
-        client = self._get_client()
         system_prompt, user_prompt = self._build_prompts(question, contexts)
 
-        completion = client.chat.completions.create(
-            model=settings.chat_model,
-            temperature=0,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
+        completion = self._post_json(
+            "/chat/completions",
+            {
+                "model": settings.chat_model,
+                "temperature": 0,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            },
         )
 
-        answer_text = completion.choices[0].message.content or "No answer generated."
+        answer_text = completion["choices"][0]["message"]["content"] or "No answer generated."
         return QAResult(answer=answer_text, references=self._build_references(contexts))
 
     def stream_answer(self, question: str) -> tuple[Iterator[str], list[str]]:
         contexts = self._retrieve(question)
-        client = self._get_client()
         system_prompt, user_prompt = self._build_prompts(question, contexts)
         refs = self._build_references(contexts)
 
-        stream = client.chat.completions.create(
-            model=settings.chat_model,
-            temperature=0,
-            stream=True,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
-
         def iterator() -> Iterator[str]:
             emitted = False
-            for chunk in stream:
-                if not chunk.choices:
+            for line in self._stream_post_lines(
+                "/chat/completions",
+                {
+                    "model": settings.chat_model,
+                    "temperature": 0,
+                    "stream": True,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                },
+            ):
+                if not line.startswith("data: "):
                     continue
-                delta = chunk.choices[0].delta.content or ""
+                data = line[6:]
+                if data == "[DONE]":
+                    break
+
+                chunk = json.loads(data)
+                if not chunk.get("choices"):
+                    continue
+
+                delta = chunk["choices"][0].get("delta", {}).get("content") or ""
                 if delta:
                     emitted = True
                     yield delta

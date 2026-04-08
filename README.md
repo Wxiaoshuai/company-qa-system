@@ -1,6 +1,6 @@
 # company-qa-system
 
-Company QA system with a practical RAG baseline (FastAPI + local vector index + OpenAI).
+Company QA system with a practical RAG baseline (FastAPI + local vector index + OpenAI-compatible API).
 
 ## Project Structure
 
@@ -41,7 +41,7 @@ Copy-Item .env.example .env
 Required variables in `.env`:
 
 - `OPENAI_API_KEY`
-- `OPENAI_BASE_URL` (optional, only if your gateway requires it)
+- `OPENAI_BASE_URL` (optional, supports OpenAI-compatible gateways)
 
 3. Put docs under `data/docs/` (UTF-8 `.txt`/`.md`)
 
