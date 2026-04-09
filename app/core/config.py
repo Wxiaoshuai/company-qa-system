@@ -21,10 +21,12 @@ if SettingsConfigDict is not None:
         embedding_model: str = "text-embedding-3-small"
         chat_model: str = "gpt-4o-mini"
 
+        rag_engine: str = "auto"
         rag_chunk_size: int = 800
         rag_chunk_overlap: int = 120
         rag_top_k: int = 4
         rag_vector_index_path: str = "data/vector_store/index.json"
+        rag_llamaindex_persist_dir: str = "data/vector_store/llamaindex"
 
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -35,6 +37,13 @@ if SettingsConfigDict is not None:
         @property
         def vector_index_path(self) -> Path:
             path = Path(self.rag_vector_index_path)
+            if path.is_absolute():
+                return path
+            return (self.project_root / path).resolve()
+
+        @property
+        def llamaindex_persist_dir(self) -> Path:
+            path = Path(self.rag_llamaindex_persist_dir)
             if path.is_absolute():
                 return path
             return (self.project_root / path).resolve()
@@ -55,10 +64,12 @@ else:
         embedding_model: str = "text-embedding-3-small"
         chat_model: str = "gpt-4o-mini"
 
+        rag_engine: str = "auto"
         rag_chunk_size: int = 800
         rag_chunk_overlap: int = 120
         rag_top_k: int = 4
         rag_vector_index_path: str = "data/vector_store/index.json"
+        rag_llamaindex_persist_dir: str = "data/vector_store/llamaindex"
 
         class Config:
             env_file = ".env"
@@ -72,6 +83,13 @@ else:
         @property
         def vector_index_path(self) -> Path:
             path = Path(self.rag_vector_index_path)
+            if path.is_absolute():
+                return path
+            return (self.project_root / path).resolve()
+
+        @property
+        def llamaindex_persist_dir(self) -> Path:
+            path = Path(self.rag_llamaindex_persist_dir)
             if path.is_absolute():
                 return path
             return (self.project_root / path).resolve()

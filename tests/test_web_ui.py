@@ -4,6 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.qa_service import QAServiceFacade
 
 
 class WebUITestCase(unittest.TestCase):
@@ -45,7 +46,10 @@ class WebUITestCase(unittest.TestCase):
 
     def test_stream_api_emits_sse_events(self) -> None:
         with patch("app.api.routes.qa_service.stream_answer") as mock_stream_answer:
-            mock_stream_answer.return_value = (iter(["示例", "回答"]), ["data/docs/employee_handbook.md#0"])
+            mock_stream_answer.return_value = (
+                iter(["示例", "回答"]),
+                ["data/docs/employee_handbook.md#0"],
+            )
 
             with self.client.stream("POST", "/api/v1/qa/stream", json={"question": "测试问题"}) as response:
                 payload = "".join(response.iter_text())
@@ -54,6 +58,15 @@ class WebUITestCase(unittest.TestCase):
         self.assertIn("event: token", payload)
         self.assertIn("event: references", payload)
         self.assertIn("event: done", payload)
+
+    def test_auto_mode_falls_back_to_native_when_llamaindex_is_unavailable(self) -> None:
+        service = QAServiceFacade()
+
+        with patch("app.services.qa_service.settings.rag_engine", "auto"):
+            with patch.object(service._llamaindex, "is_available", return_value=False):
+                backend = service._select_backend()
+
+        self.assertIs(backend, service._native)
 
 
 if __name__ == "__main__":

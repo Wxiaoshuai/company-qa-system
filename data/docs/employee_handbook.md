@@ -1,11 +1,14 @@
-# Employee Handbook (Sample)
+# 员工手册（样本）
 
-## Annual Leave
-Full-time employees are entitled to 15 days of annual leave per calendar year.
-Unused annual leave can be carried over up to 5 days to the next calendar year.
+## 年假
+全职员工每年享有15天带薪年假。
+未休的年假可结转至下个日历年，最多不超过5天。
 
-## Sick Leave
-Employees can take up to 10 days of paid sick leave per year with a valid medical certificate.
+## 病假
+员工每年可凭有效医疗证明休最多10天带薪病假。
 
-## Work From Home
-Employees may work from home up to 2 days per week with manager approval.
+## 居家办公
+经经理批准，员工每周可在家办公最多2天。
+
+## 餐补
+员工每天享受15元的就餐补助

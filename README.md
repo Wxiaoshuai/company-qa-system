@@ -1,6 +1,6 @@
 # company-qa-system
 
-Company QA system with a practical RAG baseline (FastAPI + local vector index + OpenAI-compatible API).
+Company QA system with a practical RAG baseline (FastAPI + local vector index + optional LlamaIndex acceleration).
 
 ## Project Structure
 
@@ -20,6 +20,7 @@ company-qa-system/
   .env.example
   .gitignore
   requirements.txt
+  requirements-llamaindex.txt
 ```
 
 ## Setup
@@ -30,6 +31,12 @@ company-qa-system/
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
+
+Optional LlamaIndex enhancement:
+
+```powershell
+pip install -r requirements-llamaindex.txt
 ```
 
 2. Configure environment variables
@@ -43,6 +50,11 @@ Required variables in `.env`:
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL` (optional, supports OpenAI-compatible gateways)
 
+Optional RAG variables:
+
+- `RAG_ENGINE=auto`
+- `RAG_LLAMAINDEX_PERSIST_DIR=data/vector_store/llamaindex`
+
 3. Put docs under `data/docs/` (UTF-8 `.txt`/`.md`)
 
 4. Build vector index
@@ -50,6 +62,8 @@ Required variables in `.env`:
 ```powershell
 python scripts/ingest.py
 ```
+
+If optional LlamaIndex dependencies are installed, the same command will also persist a LlamaIndex index.
 
 5. Start API
 
@@ -103,7 +117,9 @@ The chat page:
 
 ## Notes
 
-- Current retriever uses cosine similarity over local JSON vectors.
+- The project supports two RAG backends:
+  - native JSON vector retrieval for maximum compatibility
+  - optional LlamaIndex query engine, automatically preferred in `RAG_ENGINE=auto`
 - For production, replace index storage with a vector database and add auth, logging, and evaluation.
 
 ## Deployment

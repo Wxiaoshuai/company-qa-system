@@ -98,6 +98,51 @@ def embed_texts(texts: list[str], batch_size: int = 64) -> list[list[float]]:
     return vectors
 
 
+def build_llamaindex_if_available() -> bool:
+    try:
+        from llama_index.core import Settings as LlamaSettings
+        from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
+        from llama_index.core.node_parser import SentenceSplitter
+        from llama_index.embeddings.openai_like import OpenAILikeEmbedding
+        from llama_index.llms.openai_like import OpenAILike
+    except ImportError:
+        return False
+
+    LlamaSettings.llm = OpenAILike(
+        model=settings.chat_model,
+        api_base=get_api_base(),
+        api_key=settings.openai_api_key or "fake",
+        is_chat_model=True,
+        is_function_calling_model=False,
+        temperature=0,
+        context_window=16384,
+    )
+    LlamaSettings.embed_model = OpenAILikeEmbedding(
+        model_name=settings.embedding_model,
+        api_base=get_api_base(),
+        api_key=settings.openai_api_key or "fake",
+        embed_batch_size=32,
+    )
+    LlamaSettings.text_splitter = SentenceSplitter(
+        chunk_size=settings.rag_chunk_size,
+        chunk_overlap=settings.rag_chunk_overlap,
+    )
+
+    documents = SimpleDirectoryReader(
+        input_dir=str(settings.docs_dir),
+        recursive=True,
+        required_exts=list(SUPPORTED_EXTENSIONS),
+        filename_as_id=True,
+    ).load_data()
+    if not documents:
+        return False
+
+    index = VectorStoreIndex.from_documents(documents)
+    settings.llamaindex_persist_dir.mkdir(parents=True, exist_ok=True)
+    index.storage_context.persist(persist_dir=str(settings.llamaindex_persist_dir))
+    return True
+
+
 def main() -> None:
     doc_dir = settings.docs_dir
     index_path = settings.vector_index_path
@@ -128,6 +173,11 @@ def main() -> None:
 
     index_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     print(f"Ingested {len(chunks)} chunks into {index_path}")
+
+    if build_llamaindex_if_available():
+        print(f"Persisted LlamaIndex storage into {settings.llamaindex_persist_dir}")
+    else:
+        print("Skipped LlamaIndex persistence because optional dependencies are not installed.")
 
 
 if __name__ == "__main__":
