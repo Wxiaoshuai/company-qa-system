@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>用户管理 - 企业知识问答</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="admin-shell">
+      <section class="admin-panel">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Admin Console</p>
+            <h1>用户与权限管理</h1>
+            <p class="subtitle">管理员可创建账号、调整角色、启停账号并重置密码。</p>
+          </div>
+          <div class="hero-actions">
+            <a class="ghost-link" href="/">返回问答页</a>
+            <button id="admin-logout-button" class="ghost-button" type="button">退出登录</button>
+          </div>
+        </header>
+
+        <section class="admin-grid">
+          <section class="admin-card">
+            <h2>创建用户</h2>
+            <form id="create-user-form" class="admin-form">
+              <input id="create-username" type="text" placeholder="用户名" required />
+              <input id="create-display-name" type="text" placeholder="显示名称" required />
+              <input id="create-password" type="password" placeholder="初始密码" required />
+              <select id="create-role">
+                <option value="user">普通员工</option>
+                <option value="admin">管理员</option>
+              </select>
+              <label class="checkbox-row">
+                <input id="create-active" type="checkbox" checked />
+                <span>立即启用</span>
+              </label>
+              <button class="send-button" type="submit">创建用户</button>
+            </form>
+            <p id="admin-status" class="status-text">用户列表会自动刷新。</p>
+          </section>
+
+          <section class="admin-card">
+            <div class="section-title">
+              <h2>现有用户</h2>
+              <button id="refresh-users" class="ghost-button" type="button">刷新</button>
+            </div>
+            <div id="user-list" class="user-list"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <template id="user-card-template">
+      <article class="user-card">
+        <div class="user-card-head">
+          <div>
+            <h3 class="user-card-name"></h3>
+            <p class="user-card-meta"></p>
+          </div>
+          <span class="user-card-role"></span>
+        </div>
+        <div class="user-card-actions">
+          <select class="role-select">
+            <option value="user">普通员工</option>
+            <option value="admin">管理员</option>
+          </select>
+          <label class="checkbox-row">
+            <input class="active-toggle" type="checkbox" />
+            <span>启用</span>
+          </label>
+          <button class="ghost-button update-user" type="button">保存权限</button>
+        </div>
+        <form class="reset-password-form inline-form">
+          <input class="reset-password-input" type="password" placeholder="新密码（至少 8 位）" required />
+          <button class="ghost-button" type="submit">重置密码</button>
+        </form>
+      </article>
+    </template>
+
+    <script src="/static/admin.js" defer></script>
+  </body>
+</html>

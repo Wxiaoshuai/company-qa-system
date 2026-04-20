@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>登录 - 企业知识问答</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="auth-shell">
+      <section class="auth-card">
+        <p class="eyebrow">Company QA System</p>
+        <h1>员工登录</h1>
+        <p class="subtitle">请使用公司分配的账号登录后访问内部知识问答系统。</p>
+
+        <form id="login-form" class="auth-form">
+          <label for="username">用户名</label>
+          <input id="username" name="username" type="text" autocomplete="username" required />
+
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+          <button id="login-button" class="send-button auth-submit" type="submit">登录</button>
+          <p id="login-status" class="status-text">首次部署请使用初始化管理员账号登录。</p>
+        </form>
+      </section>
+    </main>
+
+    <script src="/static/login.js" defer></script>
+  </body>
+</html>

@@ -1,18 +1,25 @@
-const STORAGE_KEY = "company-qa-system.chat-history";
+const HISTORY_KEY_PREFIX = "company-qa-system.chat-history";
 
 const messagesEl = document.getElementById("messages");
 const formEl = document.getElementById("chat-form");
 const inputEl = document.getElementById("question-input");
 const sendButtonEl = document.getElementById("send-button");
 const statusTextEl = document.getElementById("status-text");
-const clearHistoryEl = document.getElementById("clear-history");
 const welcomeTemplate = document.getElementById("welcome-template");
+const logoutButtonEl = document.getElementById("logout-button");
+const currentUserNameEl = document.getElementById("current-user-name");
+const adminLinkEl = document.getElementById("admin-link");
 
 let isSending = false;
 let typingTimer = null;
 let typingQueue = [];
 let activeAssistantMessage = null;
 let activeAssistantContent = "";
+let currentUser = null;
+
+function storageKey() {
+  return `${HISTORY_KEY_PREFIX}.${currentUser?.username || "anonymous"}`;
+}
 
 function formatTime(timestamp) {
   return new Date(timestamp).toLocaleString("zh-CN", {
@@ -22,23 +29,6 @@ function formatTime(timestamp) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function readMessages() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveMessages(messages) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
 }
 
 function setStatus(message, isError = false) {
@@ -55,10 +45,37 @@ function scrollToBottom() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
+function readMessages() {
+  try {
+    const raw = localStorage.getItem(storageKey());
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(messages) {
+  localStorage.setItem(storageKey(), JSON.stringify(messages));
+}
+
+function createReferencesElement(references) {
+  const details = document.createElement("details");
+  details.className = "references";
+  const summary = document.createElement("summary");
+  summary.textContent = "查看来源";
+  const list = document.createElement("ul");
+  for (const reference of references) {
+    const item = document.createElement("li");
+    item.textContent = reference;
+    list.appendChild(item);
+  }
+  details.append(summary, list);
+  return details;
+}
+
 function createMessageElement(message) {
   const article = document.createElement("article");
   article.className = `message ${message.role}`;
-
   const bubble = document.createElement("div");
   bubble.className = "bubble";
 
@@ -76,43 +93,20 @@ function createMessageElement(message) {
   time.textContent = formatTime(message.timestamp);
 
   bubble.append(role, content);
-
   if (message.role === "assistant" && Array.isArray(message.references) && message.references.length > 0) {
-    const details = createReferencesElement(message.references);
-    bubble.appendChild(details);
+    bubble.appendChild(createReferencesElement(message.references));
   }
-
   bubble.appendChild(time);
   article.appendChild(bubble);
   return article;
 }
 
-function createReferencesElement(references) {
-  const details = document.createElement("details");
-  details.className = "references";
-
-  const summary = document.createElement("summary");
-  summary.textContent = "查看来源";
-
-  const list = document.createElement("ul");
-  for (const reference of references) {
-    const item = document.createElement("li");
-    item.textContent = reference;
-    list.appendChild(item);
-  }
-
-  details.append(summary, list);
-  return details;
-}
-
 function renderMessages(messages) {
   messagesEl.innerHTML = "";
-
   if (messages.length === 0) {
     messagesEl.appendChild(welcomeTemplate.content.cloneNode(true));
     return;
   }
-
   for (const message of messages) {
     messagesEl.appendChild(createMessageElement(message));
   }
@@ -142,10 +136,8 @@ function queueTyping(text) {
         typingTimer = null;
         return;
       }
-
       const contentEl = activeAssistantMessage.querySelector(".message-content");
       const bubbleEl = activeAssistantMessage.querySelector(".bubble");
-
       if (typingQueue.length === 0) {
         if (!isSending) {
           bubbleEl.classList.remove("streaming");
@@ -154,9 +146,7 @@ function queueTyping(text) {
         }
         return;
       }
-
-      const nextChar = typingQueue.shift();
-      activeAssistantContent += nextChar;
+      activeAssistantContent += typingQueue.shift();
       contentEl.textContent = activeAssistantContent;
       bubbleEl.classList.remove("loading");
       bubbleEl.classList.add("streaming");
@@ -168,7 +158,6 @@ function queueTyping(text) {
 function buildLoadingMessage() {
   const article = document.createElement("article");
   article.className = "message assistant";
-
   const bubble = document.createElement("div");
   bubble.className = "bubble loading";
 
@@ -206,16 +195,13 @@ function finalizeAssistantMessage(references) {
   if (!activeAssistantMessage) {
     return;
   }
-
   const bubbleEl = activeAssistantMessage.querySelector(".bubble");
   const contentEl = activeAssistantMessage.querySelector(".message-content");
   const timeEl = activeAssistantMessage.querySelector(".message-time");
-
   bubbleEl.classList.remove("loading", "streaming");
   contentEl.textContent = activeAssistantContent || "未生成回答。";
   timeEl.dateTime = new Date().toISOString();
   timeEl.textContent = formatTime(timeEl.dateTime);
-
   if (Array.isArray(references) && references.length > 0) {
     bubbleEl.appendChild(createReferencesElement(references));
   }
@@ -226,57 +212,74 @@ function finalizeAssistantMessage(references) {
     references: Array.isArray(references) ? references : [],
     timestamp: timeEl.dateTime,
   });
-
   activeAssistantMessage = null;
   activeAssistantContent = "";
 }
 
 function abortAssistantMessage(errorMessage) {
-  if (!activeAssistantMessage) {
-    appendMessage({
-      role: "assistant",
-      content: `当前无法完成回答：${errorMessage}`,
-      references: [],
-      timestamp: new Date().toISOString(),
-    });
-    return;
+  const content = `当前无法完成回答：${errorMessage}`;
+  if (activeAssistantMessage) {
+    const bubbleEl = activeAssistantMessage.querySelector(".bubble");
+    const contentEl = activeAssistantMessage.querySelector(".message-content");
+    const timeEl = activeAssistantMessage.querySelector(".message-time");
+    bubbleEl.classList.remove("loading", "streaming");
+    contentEl.textContent = content;
+    timeEl.dateTime = new Date().toISOString();
+    timeEl.textContent = formatTime(timeEl.dateTime);
+    activeAssistantMessage = null;
+    activeAssistantContent = "";
   }
-
-  const bubbleEl = activeAssistantMessage.querySelector(".bubble");
-  const contentEl = activeAssistantMessage.querySelector(".message-content");
-  const timeEl = activeAssistantMessage.querySelector(".message-time");
-
-  bubbleEl.classList.remove("loading", "streaming");
-  contentEl.textContent = `当前无法完成回答：${errorMessage}`;
-  timeEl.dateTime = new Date().toISOString();
-  timeEl.textContent = formatTime(timeEl.dateTime);
-
   appendMessage({
     role: "assistant",
-    content: `当前无法完成回答：${errorMessage}`,
+    content,
     references: [],
-    timestamp: timeEl.dateTime,
+    timestamp: new Date().toISOString(),
   });
+}
 
-  activeAssistantMessage = null;
-  activeAssistantContent = "";
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    localStorage.removeItem(storageKey());
+    window.location.href = "/login";
+    throw new Error("登录已失效，请重新登录。");
+  }
+  if (response.status === 403) {
+    throw new Error(typeof payload.detail === "string" ? payload.detail : "没有权限执行该操作。");
+  }
+  if (!response.ok) {
+    throw new Error(typeof payload.detail === "string" ? payload.detail : "请求失败，请稍后重试。");
+  }
+  return payload;
 }
 
 async function streamQuestion(question) {
   const response = await fetch("/api/v1/qa/stream", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
   });
 
+  if (response.status === 401) {
+    window.location.href = "/login";
+    throw new Error("登录已失效，请重新登录。");
+  }
+  if (response.status === 403) {
+    throw new Error("没有权限访问问答接口。");
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    const detail = typeof payload.detail === "string" ? payload.detail : "请求失败，请稍后重试。";
-    throw new Error(detail);
+    throw new Error(typeof payload.detail === "string" ? payload.detail : "请求失败，请稍后重试。");
   }
-
   if (!response.body) {
     throw new Error("当前环境不支持流式响应。");
   }
@@ -289,18 +292,14 @@ async function streamQuestion(question) {
   while (true) {
     const { value, done } = await reader.read();
     buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-
     const events = buffer.split("\n\n");
     buffer = events.pop() || "";
-
     for (const rawEvent of events) {
       if (!rawEvent.trim()) {
         continue;
       }
-
       let eventName = "message";
       let dataText = "";
-
       for (const line of rawEvent.split("\n")) {
         if (line.startsWith("event:")) {
           eventName = line.slice(6).trim();
@@ -309,7 +308,6 @@ async function streamQuestion(question) {
           dataText += line.slice(5).trim();
         }
       }
-
       const payload = dataText ? JSON.parse(dataText) : null;
       if (eventName === "token" && typeof payload === "string") {
         queueTyping(payload);
@@ -324,26 +322,17 @@ async function streamQuestion(question) {
         return references;
       }
     }
-
     if (done) {
       break;
     }
   }
-
   return references;
-}
-
-function clearHistory() {
-  localStorage.removeItem(STORAGE_KEY);
-  renderMessages([]);
-  setStatus("本地聊天记录已清空。");
 }
 
 async function submitQuestion(question) {
   if (isSending) {
     return;
   }
-
   const trimmedQuestion = question.trim();
   if (!trimmedQuestion) {
     setStatus("请输入问题后再发送。", true);
@@ -351,20 +340,17 @@ async function submitQuestion(question) {
     return;
   }
 
-  const timestamp = new Date().toISOString();
   appendMessage({
     role: "user",
     content: trimmedQuestion,
     references: [],
-    timestamp,
+    timestamp: new Date().toISOString(),
   });
-
   inputEl.value = "";
   autosize();
   setStatus("正在查询知识库并生成回答...");
   setSendingState(true);
   startAssistantStream();
-
   try {
     const references = await streamQuestion(trimmedQuestion);
     finalizeAssistantMessage(references);
@@ -376,6 +362,24 @@ async function submitQuestion(question) {
     setSendingState(false);
     inputEl.focus();
   }
+}
+
+async function loadCurrentUser() {
+  const user = await requestJson("/api/v1/auth/me", { method: "GET", headers: {} });
+  currentUser = user;
+  currentUserNameEl.textContent = `${user.display_name} (${user.username})`;
+  adminLinkEl.classList.toggle("hidden", user.role !== "admin");
+  renderMessages(readMessages());
+}
+
+async function logout() {
+  try {
+    await requestJson("/api/v1/auth/logout", { method: "POST" });
+  } catch {
+    // ignore logout issues
+  }
+  localStorage.removeItem(storageKey());
+  window.location.href = "/login";
 }
 
 formEl.addEventListener("submit", async (event) => {
@@ -396,14 +400,15 @@ document.addEventListener("click", async (event) => {
   if (!button) {
     return;
   }
-
   const question = button.getAttribute("data-question") || "";
   inputEl.value = question;
   autosize();
   await submitQuestion(question);
 });
 
-clearHistoryEl.addEventListener("click", clearHistory);
+logoutButtonEl.addEventListener("click", logout);
 
-renderMessages(readMessages());
+loadCurrentUser().catch((error) => {
+  setStatus(error.message, true);
+});
 autosize();

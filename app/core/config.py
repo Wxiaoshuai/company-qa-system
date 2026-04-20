@@ -27,6 +27,18 @@ if SettingsConfigDict is not None:
         rag_top_k: int = 4
         rag_vector_index_path: str = "data/vector_store/index.json"
         rag_llamaindex_persist_dir: str = "data/vector_store/llamaindex"
+        auth_db_path: str = "data/auth.db"
+        auth_session_cookie_name: str = "company_qa_session"
+        auth_session_secret: str = "change-me-in-production"
+        auth_session_ttl_hours: int = 12
+        auth_cookie_secure: bool = False
+        auth_login_max_attempts: int = 5
+        auth_lock_minutes: int = 15
+        auth_init_admin_enabled: bool = True
+        auth_init_admin_username: str = "admin"
+        auth_init_admin_password: str = "ChangeMe123!"
+        auth_init_admin_display_name: str = "System Admin"
+        auth_init_admin_reset_password: bool = False
 
         model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -44,6 +56,13 @@ if SettingsConfigDict is not None:
         @property
         def llamaindex_persist_dir(self) -> Path:
             path = Path(self.rag_llamaindex_persist_dir)
+            if path.is_absolute():
+                return path
+            return (self.project_root / path).resolve()
+
+        @property
+        def auth_db_file(self) -> Path:
+            path = Path(self.auth_db_path)
             if path.is_absolute():
                 return path
             return (self.project_root / path).resolve()
@@ -70,6 +89,18 @@ else:
         rag_top_k: int = 4
         rag_vector_index_path: str = "data/vector_store/index.json"
         rag_llamaindex_persist_dir: str = "data/vector_store/llamaindex"
+        auth_db_path: str = "data/auth.db"
+        auth_session_cookie_name: str = "company_qa_session"
+        auth_session_secret: str = "change-me-in-production"
+        auth_session_ttl_hours: int = 12
+        auth_cookie_secure: bool = False
+        auth_login_max_attempts: int = 5
+        auth_lock_minutes: int = 15
+        auth_init_admin_enabled: bool = True
+        auth_init_admin_username: str = "admin"
+        auth_init_admin_password: str = "ChangeMe123!"
+        auth_init_admin_display_name: str = "System Admin"
+        auth_init_admin_reset_password: bool = False
 
         class Config:
             env_file = ".env"
@@ -90,6 +121,13 @@ else:
         @property
         def llamaindex_persist_dir(self) -> Path:
             path = Path(self.rag_llamaindex_persist_dir)
+            if path.is_absolute():
+                return path
+            return (self.project_root / path).resolve()
+
+        @property
+        def auth_db_file(self) -> Path:
+            path = Path(self.auth_db_path)
             if path.is_absolute():
                 return path
             return (self.project_root / path).resolve()

@@ -1,8 +1,10 @@
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.core.auth import get_current_user
+from app.core.auth_store import UserRecord
 from app.models.schemas import AskRequest, AskResponse
 from app.services.qa_service import qa_service
 
@@ -10,7 +12,7 @@ router = APIRouter(prefix="/api/v1/qa", tags=["qa"])
 
 
 @router.post("/ask", response_model=AskResponse)
-def ask_question(payload: AskRequest) -> AskResponse:
+def ask_question(payload: AskRequest, _: UserRecord = Depends(get_current_user)) -> AskResponse:
     try:
         result = qa_service.answer(payload.question)
     except Exception as exc:
@@ -23,7 +25,7 @@ def _sse_event(event: str, data: object) -> str:
 
 
 @router.post("/stream")
-def stream_question(payload: AskRequest) -> StreamingResponse:
+def stream_question(payload: AskRequest, _: UserRecord = Depends(get_current_user)) -> StreamingResponse:
     try:
         answer_stream, references = qa_service.stream_answer(payload.question)
     except Exception as exc:
