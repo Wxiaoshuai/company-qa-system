@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import sqlite3; conn=sqlite3.connect\\('data/auth.db'\\); conn.execute\\('DELETE FROM users WHERE username=\\\\\"admin\\\\\"'\\); conn.commit\\(\\); print\\('Done'\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(.venv/Scripts/python -c ' *)",
+      "Bash(.venv/Scripts/python -c \"import llama_index.core; print\\('llama_index.core OK'\\)\")",
+      "Bash(.venv/Scripts/python -c \"import llama_index; print\\(llama_index.__version__\\)\")",
+      "Bash(.venv/Scripts/python -c \"from llama_index.core import settings; print\\('OK'\\)\")"
+    ]
+  }
+}

@@ -40,7 +40,7 @@ if SettingsConfigDict is not None:
         auth_init_admin_display_name: str = "System Admin"
         auth_init_admin_reset_password: bool = False
 
-        model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+        model_config = SettingsConfigDict(env_file=(Path(__file__).parent.parent.parent / ".env").resolve(), env_file_encoding="utf-8", extra="ignore")
 
         @property
         def project_root(self) -> Path:
@@ -103,7 +103,7 @@ else:
         auth_init_admin_reset_password: bool = False
 
         class Config:
-            env_file = ".env"
+            env_file = str((Path(__file__).parent.parent.parent / ".env").resolve())
             env_file_encoding = "utf-8"
             extra = "ignore"
 
